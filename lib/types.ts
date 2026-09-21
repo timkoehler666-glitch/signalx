@@ -29,6 +29,12 @@ export interface Analysis {
   mode: "live" | "demo";
   regime: "improving" | "mixed" | "deteriorating";
   confidence: number;
+  pulse: number;
+  dataCoverage: number;
+  positiveSignals: number;
+  negativeSignals: number;
+  neutralSignals: number;
+  topSignal: string | null;
   thesis: string;
   devilAdvocate: string;
   signals: Signal[];
