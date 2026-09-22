@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMarketSnapshot } from "@/lib/market";
+import { MarketProvidersUnavailableError } from "@/lib/market";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,10 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Market data request failed." },
+      {
+        error: error instanceof Error ? error.message : "Market data request failed.",
+        providerChecks: error instanceof MarketProvidersUnavailableError ? error.providerChecks : [],
+      },
       { status: 502 },
     );
   }
