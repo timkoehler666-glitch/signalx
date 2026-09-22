@@ -5,11 +5,14 @@ import type { Analysis, Evidence, Signal } from "@/lib/types";
 
 type TabId="overview"|"thesis"|"signals"|"sources";
 interface ProviderCheck{provider:"yahoo"|"twelve-data";status:"active"|"standby"|"not-configured"|"failed";message:string|null}
+interface TechnicalSignalComponent{id:string;title:string;state:"buy"|"sell"|"neutral";score:-1|0|1;value:string;explanation:string}
+interface TechnicalSignal{state:"buy"|"sell"|"hold";score:number;confidence:number;asOf:string|null;horizon:string;method:string;invalidation:string;components:TechnicalSignalComponent[]}
 interface MarketSnapshot{
   provider:"yahoo"|"twelve-data";providerAttempts:Array<"yahoo"|"twelve-data">;providerChecks:ProviderCheck[];
   symbol:string;name:string|null;sector:string|null;industry:string|null;stockCategory:string|null;exchange:string|null;currency:string|null;
   price:number;change:number|null;changePercent:number|null;asOf:string|null;trailingPe:number|null;forwardPe:number|null;
   dividendYieldPercent:number|null;nextDividendDate:string|null;
+  technicalSignal:TechnicalSignal|null;
   chart:Array<{date:string;open:number;high:number;low:number;close:number;volume:number|null}>;warnings:string[];
 }
 
@@ -46,6 +49,20 @@ function MarketPanel({market,loading,error}:{market:MarketSnapshot|null;loading:
   </section>;
 }
 
+const technicalStateLabel={buy:"Kaufsignal",sell:"Verkaufssignal",hold:"Abwarten"} as const;
+const componentStateLabel={buy:"Positiv",sell:"Negativ",neutral:"Neutral"} as const;
+function TechnicalSignalPanel({market,loading}:{market:MarketSnapshot|null;loading:boolean}){
+  if(loading)return <section className="technicalSignal loadingSignal">Live-Signal wird berechnet…</section>;
+  const signal=market?.technicalSignal;
+  if(!signal)return <section className="technicalSignal unavailableSignal"><b>Noch kein belastbares Live-Signal</b><span>Für den Signal Stack werden mindestens 50 vollständige Handelstage benötigt.</span></section>;
+  return <section className={`technicalSignal ${signal.state}`}>
+    <header><div><p className="eyebrow">KINKGOX SIGNAL STACK · LIVE SNAPSHOT</p><div className="signalVerdict"><strong>{technicalStateLabel[signal.state]}</strong><span>{signal.score>0?"+":""}{signal.score}/100</span></div><small>{signal.horizon} · Stand {date(signal.asOf)} · max. 5 Minuten Cache</small></div><div className="signalConfidence"><span>Übereinstimmung</span><b>{signal.confidence}%</b><small>{signal.method}</small></div></header>
+    <div className="signalMeter" aria-label={`Signalstärke ${signal.score} von 100`}><span style={{left:`${(signal.score+100)/2}%`}}/></div>
+    <div className="technicalComponents">{signal.components.map(item=><article className={item.state} key={item.id}><div><span className="componentDot"/><small>{componentStateLabel[item.state]}</small></div><h3>{item.title}</h3><b>{item.value}</b><p>{item.explanation}</p></article>)}</div>
+    <div className="signalInvalidation"><div><span>Signal-Kippunkt</span><strong>{signal.invalidation}</strong></div><p>Technisches Research-Signal, keine persönliche Kauf- oder Verkaufsempfehlung. Fundamentaldaten, Bewertung, Risiko und Anlagehorizont separat prüfen.</p></div>
+  </section>;
+}
+
 function downloadReport(data:Analysis){const payload={product:"KinkgoX",disclaimer:"Educational research only — not investment advice.",...data},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`kingkox-${data.ticker.toLowerCase()}-${data.generatedAt.slice(0,10)}.json`;a.click();URL.revokeObjectURL(url)}
 const tabs:Array<{id:TabId;label:string}>=[{id:"overview",label:"Überblick"},{id:"thesis",label:"These"},{id:"signals",label:"Signale"},{id:"sources",label:"Quellen"}];
 
@@ -66,7 +83,7 @@ export default function Home(){
       <div className="tabPanel" role="tabpanel">
         {activeTab==="overview"&&<><>{data.mode==="live"&&<MarketPanel market={market} loading={marketLoading} error={marketError}/>}</><div className="pulseGrid"><article><small>Pulse</small><strong>{data.pulse>0?"+":""}{data.pulse}</strong><div className="pulseTrack"><span style={{width:`${Math.abs(data.pulse)}%`,marginLeft:data.pulse<0?`${100-Math.abs(data.pulse)}%`:"0"}}/></div></article><article><small>Signal mix</small><strong>{data.positiveSignals} / {data.negativeSignals}</strong><span>positive / negative</span></article><article><small>Data coverage</small><strong>{data.dataCoverage}%</strong><span>comparable SEC fields</span></article><article><small>Strongest change</small><strong className="topSignal">{data.topSignal??"No decisive signal"}</strong><span>highest evidence strength</span></article></div></>}
         {activeTab==="thesis"&&<div className="thesisGrid"><article><p className="eyebrow">THESIS ENGINE</p><h3>Current evidence map</h3><p>{data.thesis}</p></article><article className="devil"><p className="eyebrow">DEVIL’S ADVOCATE</p><h3>How this could be wrong</h3><p>{data.devilAdvocate}</p></article></div>}
-        {activeTab==="signals"&&<><div className="sectionTitle"><div><p className="eyebrow">HIDDEN SIGNALS</p><h2>Changes behind the headline</h2></div><span>{data.signals.length} checks</span></div><div className="signals">{data.signals.map(s=><SignalCard key={s.id} signal={s}/>)}</div></>}
+        {activeTab==="signals"&&<><TechnicalSignalPanel market={market} loading={marketLoading}/><div className="sectionTitle fundamentalSignalsTitle"><div><p className="eyebrow">FUNDAMENTALE SIGNALE</p><h2>Changes behind the headline</h2></div><span>{data.signals.length} checks</span></div><div className="signals">{data.signals.map(s=><SignalCard key={s.id} signal={s}/>)}</div></>}
         {activeTab==="sources"&&<article className="ledger"><p className="eyebrow">EVIDENCE LEDGER</p><h2>Audit the thesis</h2><p>Every metric retains its filing date and source link. The model exposes its counterarguments instead of hiding uncertainty.</p>{data.warnings.map(w=><p className="warning" key={w}>⚠ {w}</p>)}</article>}
       </div>
     </section>}
