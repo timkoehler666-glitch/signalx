@@ -136,6 +136,7 @@ export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketS
   return {
     provider: "twelve-data",
     providerAttempts: ["twelve-data"],
+    providerChecks: [],
     symbol: quote.symbol,
     name: quote.name ?? null,
     exchange: quote.exchange ?? null,

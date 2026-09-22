@@ -1,4 +1,11 @@
 export type MarketProvider = "yahoo" | "twelve-data";
+export type MarketProviderStatus = "active" | "standby" | "not-configured" | "failed";
+
+export interface MarketProviderCheck {
+  provider: MarketProvider;
+  status: MarketProviderStatus;
+  message: string | null;
+}
 
 export interface MarketPoint {
   date: string;
@@ -12,6 +19,7 @@ export interface MarketPoint {
 export interface MarketSnapshot {
   provider: MarketProvider;
   providerAttempts: MarketProvider[];
+  providerChecks: MarketProviderCheck[];
   symbol: string;
   name: string | null;
   exchange: string | null;
