@@ -22,6 +22,9 @@ export interface MarketSnapshot {
   providerChecks: MarketProviderCheck[];
   symbol: string;
   name: string | null;
+  sector: string | null;
+  industry: string | null;
+  stockCategory: string | null;
   exchange: string | null;
   currency: string | null;
   price: number;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MarketSnapshot } from "./market-types";
+import { classifyStock } from "./industry";
 
 const API_BASE = "https://api.twelvedata.com";
 
@@ -57,6 +58,8 @@ const StatisticsSchema = z.object({
   }).optional(),
 });
 
+const ProfileSchema = z.object({sector:z.string().nullable().optional(),industry:z.string().nullable().optional()});
+
 function apiKey() {
   const key = process.env.TWELVE_DATA_API_KEY?.trim();
   if (!key) throw new Error("Twelve Data is not configured.");
@@ -97,11 +100,12 @@ function annualDividend(dividends: Array<{ ex_date: string; amount: number }>) {
 export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketSnapshot> {
   const symbol = cleanTicker(ticker);
   const warnings: string[] = [];
-  const [quoteResult, chartResult, dividendResult, statsResult] = await Promise.allSettled([
+  const [quoteResult, chartResult, dividendResult, statsResult, profileResult] = await Promise.allSettled([
     request("/quote", { symbol }),
     request("/time_series", { symbol, interval: "1day", outputsize: "252", order: "ASC" }),
     request("/dividends", { symbol, range: "1y" }),
     request("/statistics", { symbol }),
+    request("/profile", { symbol }),
   ]);
 
   if (quoteResult.status === "rejected") throw quoteResult.reason;
@@ -132,6 +136,9 @@ export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketS
   const annual = annualDividend(dividends);
   const today = new Date().toISOString().slice(0, 10);
   const nextDividend = dividends.filter(item => item.ex_date >= today).sort((a, b) => a.ex_date.localeCompare(b.ex_date))[0];
+  const profile=profileResult.status==="fulfilled"?ProfileSchema.parse(profileResult.value):null;
+  if(profileResult.status==="rejected")warnings.push("Industry profile is unavailable on the current Twelve Data plan or temporarily unavailable.");
+  const sector=profile?.sector??null,industry=profile?.industry??null;
 
   return {
     provider: "twelve-data",
@@ -139,6 +146,9 @@ export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketS
     providerChecks: [],
     symbol: quote.symbol,
     name: quote.name ?? null,
+    sector,
+    industry,
+    stockCategory: classifyStock(sector,industry),
     exchange: quote.exchange ?? null,
     currency: quote.currency ?? null,
     price: quote.close,

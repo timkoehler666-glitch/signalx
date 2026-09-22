@@ -14,7 +14,9 @@ describe("Twelve Data adapter", () => {
           ? { meta:{ symbol:"AAPL", interval:"1day" }, values:[{ datetime:"2026-09-21", open:"198", high:"201", low:"197", close:"200", volume:"1000" }] }
           : path === "/dividends"
             ? { dividends:[{ ex_date:"2026-08-10", amount:"0.25" },{ ex_date:"2026-05-10", amount:"0.25" },{ ex_date:"2026-02-10", amount:"0.25" },{ ex_date:"2025-11-10", amount:"0.25" }] }
-            : { statistics:{ valuations_metrics:{ trailing_pe:"25", forward_pe:"22" } } };
+            : path === "/profile"
+              ? { sector:"Technology", industry:"Consumer Electronics" }
+              : { statistics:{ valuations_metrics:{ trailing_pe:"25", forward_pe:"22" } } };
       return new Response(JSON.stringify(body), { status: 200 });
     });
 
@@ -23,6 +25,7 @@ describe("Twelve Data adapter", () => {
     expect(result.trailingPe).toBe(25);
     expect(result.dividendYieldPercent).toBeCloseTo(0.5);
     expect(result.chart[0].close).toBe(200);
+    expect(result.stockCategory).toBe("Technologie & Telekom Aktien");
   });
 
   it("keeps the quote usable when optional endpoints fail", async () => {
@@ -36,6 +39,6 @@ describe("Twelve Data adapter", () => {
     const result = await fetchTwelveMarketSnapshot("MSFT");
     expect(result.price).toBe(500);
     expect(result.chart).toEqual([]);
-    expect(result.warnings).toHaveLength(3);
+    expect(result.warnings).toHaveLength(4);
   });
 });

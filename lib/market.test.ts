@@ -9,7 +9,7 @@ import { fetchTwelveMarketSnapshot } from "./twelve-data";
 import { fetchYahooMarketSnapshot } from "./yahoo";
 
 const snapshot=(provider:MarketSnapshot["provider"]):MarketSnapshot=>({
-  provider,providerAttempts:[provider],providerChecks:[],symbol:"MSFT",name:"Microsoft",exchange:"NASDAQ",currency:"USD",price:500,change:2,changePercent:.4,asOf:"2026-09-22T12:00:00Z",trailingPe:30,forwardPe:28,dividendYieldPercent:.7,nextDividendDate:"2026-11-10",chart:[{date:"2026-09-21",open:498,high:501,low:497,close:500,volume:100}],warnings:[],
+  provider,providerAttempts:[provider],providerChecks:[],symbol:"MSFT",name:"Microsoft",sector:"Technology",industry:"Software",stockCategory:"Technologie & Telekom Aktien",exchange:"NASDAQ",currency:"USD",price:500,change:2,changePercent:.4,asOf:"2026-09-22T12:00:00Z",trailingPe:30,forwardPe:28,dividendYieldPercent:.7,nextDividendDate:"2026-11-10",chart:[{date:"2026-09-21",open:498,high:501,low:497,close:500,volume:100}],warnings:[],
 });
 
 describe("market provider fallback",()=>{
