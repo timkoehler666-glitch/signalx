@@ -16,6 +16,26 @@ export interface MarketPoint {
   volume: number | null;
 }
 
+export interface TechnicalSignalComponent {
+  id: string;
+  title: string;
+  state: "buy" | "sell" | "neutral";
+  score: -1 | 0 | 1;
+  value: string;
+  explanation: string;
+}
+
+export interface TechnicalSignal {
+  state: "buy" | "sell" | "hold";
+  score: number;
+  confidence: number;
+  asOf: string | null;
+  horizon: string;
+  method: string;
+  invalidation: string;
+  components: TechnicalSignalComponent[];
+}
+
 export interface MarketSnapshot {
   provider: MarketProvider;
   providerAttempts: MarketProvider[];
@@ -25,6 +45,7 @@ export interface MarketSnapshot {
   sector: string | null;
   industry: string | null;
   stockCategory: string | null;
+  technicalSignal: TechnicalSignal | null;
   exchange: string | null;
   currency: string | null;
   price: number;

@@ -149,6 +149,7 @@ export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketS
     sector,
     industry,
     stockCategory: classifyStock(sector,industry),
+    technicalSignal: null,
     exchange: quote.exchange ?? null,
     currency: quote.currency ?? null,
     price: quote.close,
