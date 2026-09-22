@@ -1,0 +1,24 @@
+import { z } from "zod";
+import type { MarketSnapshot } from "./market-types";
+
+const ChartSchema = z.object({chart:z.object({result:z.array(z.object({meta:z.object({symbol:z.string(),currency:z.string().optional(),exchangeName:z.string().optional(),longName:z.string().optional(),shortName:z.string().optional(),regularMarketPrice:z.number().optional(),chartPreviousClose:z.number().optional(),regularMarketTime:z.number().optional()}),timestamp:z.array(z.number()),indicators:z.object({quote:z.array(z.object({open:z.array(z.number().nullable()),high:z.array(z.number().nullable()),low:z.array(z.number().nullable()),close:z.array(z.number().nullable()),volume:z.array(z.number().nullable())})).min(1)})})).nullable(),error:z.object({description:z.string().optional()}).nullable()})});
+const SummarySchema=z.object({quoteSummary:z.object({result:z.array(z.object({summaryDetail:z.object({trailingPE:z.object({raw:z.number()}).optional(),forwardPE:z.object({raw:z.number()}).optional(),dividendYield:z.object({raw:z.number()}).optional(),exDividendDate:z.object({raw:z.number()}).optional()}).optional(),defaultKeyStatistics:z.object({trailingEps:z.object({raw:z.number()}).optional(),forwardPE:z.object({raw:z.number()}).optional()}).optional(),calendarEvents:z.object({dividendDate:z.object({raw:z.number()}).optional(),exDividendDate:z.object({raw:z.number()}).optional()}).optional()})).nullable()})});
+
+function cleanTicker(ticker:string){const clean=ticker.trim().toUpperCase();if(!/^[A-Z0-9][A-Z0-9.^=/-]{0,24}$/.test(clean))throw new Error("Enter a valid ticker symbol.");return clean}
+async function yahooJson(url:URL){const response=await fetch(url,{headers:{Accept:"application/json","User-Agent":"Mozilla/5.0 KinkgoX/0.1"},next:{revalidate:300}});if(!response.ok)throw new Error(`Yahoo request failed (HTTP ${response.status}).`);return response.json() as Promise<unknown>}
+
+export async function fetchYahooMarketSnapshot(ticker:string):Promise<MarketSnapshot>{
+  const symbol=cleanTicker(ticker);
+  const chartUrl=new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);chartUrl.search=new URLSearchParams({range:"1y",interval:"1d",events:"div,splits",includeAdjustedClose:"true"}).toString();
+  const summaryUrl=new URL(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}`);summaryUrl.search=new URLSearchParams({modules:"summaryDetail,defaultKeyStatistics,calendarEvents"}).toString();
+  const[chartPayload,summaryResult]=await Promise.all([yahooJson(chartUrl),yahooJson(summaryUrl).catch(()=>null)]);
+  const envelope=ChartSchema.parse(chartPayload),result=envelope.chart.result?.[0];if(!result||envelope.chart.error)throw new Error(envelope.chart.error?.description||"Yahoo returned no chart data.");
+  const quote=result.indicators.quote[0];const chart=result.timestamp.flatMap((timestamp,index)=>{const open=quote.open[index],high=quote.high[index],low=quote.low[index],close=quote.close[index];return open==null||high==null||low==null||close==null?[]:[{date:new Date(timestamp*1000).toISOString().slice(0,10),open,high,low,close,volume:quote.volume[index]??null}]});
+  const price=result.meta.regularMarketPrice??chart.at(-1)?.close;if(!price||!Number.isFinite(price)||chart.length<2)throw new Error("Yahoo returned an incomplete market snapshot.");
+  const previous=result.meta.chartPreviousClose??chart.at(-2)?.close??null,change=previous==null?null:price-previous;
+  const summary=summaryResult?SummarySchema.safeParse(summaryResult):null,details=summary?.success?summary.data.quoteSummary.result?.[0]:undefined;
+  const trailingPe=details?.summaryDetail?.trailingPE?.raw??(details?.defaultKeyStatistics?.trailingEps?.raw?price/details.defaultKeyStatistics.trailingEps.raw:null);
+  const dividendDate=details?.calendarEvents?.dividendDate?.raw??details?.calendarEvents?.exDividendDate?.raw??details?.summaryDetail?.exDividendDate?.raw;
+  const warnings:string[]=[];if(!details)warnings.push("Yahoo valuation and dividend details are temporarily unavailable; no values were mixed in from another provider.");
+  return{provider:"yahoo",providerAttempts:["yahoo"],symbol:result.meta.symbol,name:result.meta.longName??result.meta.shortName??null,exchange:result.meta.exchangeName??null,currency:result.meta.currency??null,price,change,changePercent:change!=null&&previous?change/previous*100:null,asOf:result.meta.regularMarketTime?new Date(result.meta.regularMarketTime*1000).toISOString():chart.at(-1)?.date??null,trailingPe:trailingPe??null,forwardPe:details?.summaryDetail?.forwardPE?.raw??details?.defaultKeyStatistics?.forwardPE?.raw??null,dividendYieldPercent:details?.summaryDetail?.dividendYield?.raw!=null?details.summaryDetail.dividendYield.raw*100:null,nextDividendDate:dividendDate?new Date(dividendDate*1000).toISOString().slice(0,10):null,chart,warnings};
+}

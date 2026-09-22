@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { MarketSnapshot } from "./market-types";
 
 const API_BASE = "https://api.twelvedata.com";
 
@@ -56,31 +57,6 @@ const StatisticsSchema = z.object({
   }).optional(),
 });
 
-export interface TwelveMarketSnapshot {
-  provider: "twelve-data";
-  symbol: string;
-  name: string | null;
-  exchange: string | null;
-  currency: string | null;
-  price: number;
-  change: number | null;
-  changePercent: number | null;
-  asOf: string | null;
-  trailingPe: number | null;
-  forwardPe: number | null;
-  dividendYieldPercent: number | null;
-  nextDividendDate: string | null;
-  chart: Array<{
-    date: string;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number | null;
-  }>;
-  warnings: string[];
-}
-
 function apiKey() {
   const key = process.env.TWELVE_DATA_API_KEY?.trim();
   if (!key) throw new Error("Twelve Data is not configured.");
@@ -118,7 +94,7 @@ function annualDividend(dividends: Array<{ ex_date: string; amount: number }>) {
     .reduce((sum, item) => sum + item.amount, 0);
 }
 
-export async function fetchTwelveMarketSnapshot(ticker: string): Promise<TwelveMarketSnapshot> {
+export async function fetchTwelveMarketSnapshot(ticker: string): Promise<MarketSnapshot> {
   const symbol = cleanTicker(ticker);
   const warnings: string[] = [];
   const [quoteResult, chartResult, dividendResult, statsResult] = await Promise.allSettled([
@@ -159,6 +135,7 @@ export async function fetchTwelveMarketSnapshot(ticker: string): Promise<TwelveM
 
   return {
     provider: "twelve-data",
+    providerAttempts: ["twelve-data"],
     symbol: quote.symbol,
     name: quote.name ?? null,
     exchange: quote.exchange ?? null,
