@@ -19,6 +19,7 @@ KinkgoX reads standardized SEC company facts and turns changes in fundamentals i
 ```bash
 cp .env.example .env.local
 # Set SEC_USER_AGENT to your application name and real contact email.
+# Set TWELVE_DATA_API_KEY for the server-side market-data fallback.
 npm install
 npm run dev
 ```
@@ -35,6 +36,8 @@ npm run build
 ## Data policy
 
 Live data comes from the public SEC EDGAR APIs. Production deployments must use a descriptive `SEC_USER_AGENT`, cache responses, stay within SEC fair-access guidance, and retain source attribution.
+
+Market quotes, one-year daily charts, valuation statistics and dividends are available through the server-only `/api/market?ticker=...` endpoint backed by Twelve Data. The API key is read only from `TWELVE_DATA_API_KEY` and is never returned to the browser.
 
 ## Product direction
 
